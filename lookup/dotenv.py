@@ -19,7 +19,8 @@ class LookupModule(LookupBase):
         ret = []
 
         params = {
-            'file': basedir + '/.env',
+            'file': '.env',
+            'path': basedir,
             'key': None,
         }
 
@@ -29,16 +30,20 @@ class LookupModule(LookupBase):
             try:
                 for name, value in kv.items():
                     if name not in params:
-                        raise AnsibleAssertionError('%s not in params' % name)
+                        raise AnsibleAssertionError('{} not in params'.format(name))
                     params[name] = value
             except (ValueError, AssertionError) as e:
                 raise AnsibleError(e)
 
 
-            if not os.path.isfile(params['file']):
+            path = params['file']
+            if params['path']:
+                path = '{}/{}'.format(params['path'], params['file'])
+
+            if not os.path.isfile(path):
                 raise FileNotFoundError
 
-            dotenv = dotenv_values(dotenv_path=params['file'])
+            dotenv = dotenv_values(dotenv_path=path)
             data = json.loads(json.dumps(dotenv))
 
             if params['key'] is None:
