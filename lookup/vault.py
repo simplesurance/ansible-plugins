@@ -23,19 +23,7 @@ except ImportError:
 
 from ansible.errors import AnsibleError
 import ansible.utils
-try:
-    from ansible.plugins.lookup import LookupBase
-except ImportError:
-    # ansible-1.9.x
-    class LookupBase(object):
-        def __init__(self, basedir=None, runner=None, **kwargs):
-            self.runner = runner
-            self.basedir = basedir or (self.runner.basedir
-                                       if self.runner
-                                       else None)
-
-        def get_basedir(self, variables):
-            return self.basedir
+from ansible.plugins.lookup import LookupBase
 
 USE_CACHE = os.environ.get(
     "ANSIBLE_HASHICORP_VAULT_USE_CACHE", "yes").lower() in ("yes", "1", "true")
