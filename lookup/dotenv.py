@@ -39,11 +39,11 @@ class LookupModule(LookupBase):
                 raise FileNotFoundError
 
             dotenv = dotenv_values(dotenv_path=params['file'])
-            data = json.dumps(dotenv)
+            data = json.loads(json.dumps(dotenv))
 
-            if key is None:
+            if params['key'] is None:
                 ret.append(data)
             else:
-                ret.append(data[key])
+                ret.append(data[params['key']])
 
         return ret
