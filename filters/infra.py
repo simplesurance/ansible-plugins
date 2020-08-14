@@ -4,7 +4,9 @@ __metaclass__ = type
 
 import re
 
-def target2region( value ):
+from ansible.errors import AnsibleFilterError
+
+def target2region(value):
     """
     Very simple filter plugin to extract region from the deployment target
     templated_string: "{{ target|target2region }}"
@@ -12,13 +14,13 @@ def target2region( value ):
     if re.search("^sb-.*", value):
         return "eu"
 
-    x = re.search("^.+-(stg|prd)-(.+)$",value)
-    if (x):
-        return(x.group(2))
+    search = re.search("^.+-(stg|prd)-(.+)$", value)
+    if search:
+        return search.group(2)
 
-    return AnsibleFilterError("Cannot get region out of target: %s" % value)
+    raise AnsibleFilterError("Cannot get region out of target: %s" % value)
 
-def target2project_id( value ):
+def target2project_id(value):
     """
     Very simple filter plugin to extract project_id from the deployment target
     templated_string: "{{ target|target2project_id }}"
@@ -26,11 +28,11 @@ def target2project_id( value ):
     if re.search("^sb-.*", value):
         return "sisu"
 
-    x = re.search("^(.+)-(stg|prd)-(.+)$",value)
-    if (x):
-        return(x.group(1))
+    search = re.search("^(.+)-(stg|prd)-(.+)$", value)
+    if search:
+        return search.group(1)
 
-    return AnsibleFilterError("Cannot get project_id out of target: %s" % value)
+    raise AnsibleFilterError("Cannot get project_id out of target: %s" % value)
 
 class FilterModule(object):
     def filters(self):
