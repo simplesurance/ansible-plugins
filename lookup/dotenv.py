@@ -32,7 +32,6 @@ class LookupModule(LookupBase):
             except (ValueError, AssertionError) as e:
                 raise AnsibleError(e)
 
-
             path = params['file']
             if params['path']:
                 path = '{}/{}'.format(params['path'], params['file'])
