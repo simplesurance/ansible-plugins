@@ -1,5 +1,3 @@
-import json
-
 
 def traefik_params(d):
     """
