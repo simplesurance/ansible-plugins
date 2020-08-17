@@ -14,6 +14,9 @@ import time
 import traceback
 from distutils.version import StrictVersion
 from sys import version_info
+from ansible.utils.display import Display
+from ansible.module_utils._text import to_native
+
 
 # compatibility with Python >= 2.7.13
 try:
@@ -30,108 +33,116 @@ USE_CACHE = os.environ.get(
 DISABLE_VAULT_CAHOSTVERIFY = "no"
 VAULT_CACHE = {}
 
+display = Display()
+
 
 class LookupModule(LookupBase):
 
     def run(self, terms, inject=None, variables=None, **kwargs):
-        # Ansible variables are passed via "variables" in ansible 2.x, "inject" in 1.9.x
-
-        basedir = self.get_basedir(variables)
-
-        if hasattr(ansible.utils, 'listify_lookup_plugin_terms'):
-            # ansible-1.9.x
-            terms = ansible.utils.listify_lookup_plugin_terms(terms, basedir, inject)
-
-        term_split = terms[0].split(' ', 1)
-        key = term_split[0]
-
-        # the environment variable takes precendence over the Ansible variable.
-        cafile = os.getenv('VAULT_CACERT') or (variables or inject).get('vault_cacert')
-        capath = os.getenv('VAULT_CAPATH') or (variables or inject).get('vault_capath')
-        cahostverify = (os.getenv('VAULT_CAHOSTVERIFY') or
-                        (variables or inject).get('vault_cahostverify') or 'yes') != DISABLE_VAULT_CAHOSTVERIFY
-        skipverify = ((os.getenv('VAULT_SKIP_VERIFY') in ['1', 'true', 'True', 't']) or
-                      (variables or inject).get('vault_skip_verify'))
-        self._verify_python_version(key, cafile, capath, cahostverify)
-
         try:
-            parameters = term_split[1]
-            parameters = shlex.split(parameters)
+            # Ansible variables are passed via "variables" in ansible 2.x, "inject" in 1.9.x
 
-            parameter_bag = {}
-            for parameter in parameters:
-                parameter_split = parameter.split('=', 1)
+            basedir = self.get_basedir(variables)
 
-                parameter_key = parameter_split[0]
-                parameter_value = parameter_split[1]
-                parameter_bag[parameter_key] = parameter_value
+            if hasattr(ansible.utils, 'listify_lookup_plugin_terms'):
+                # ansible-1.9.x
+                terms = ansible.utils.listify_lookup_plugin_terms(terms, basedir, inject)
 
-            data = json.dumps(parameter_bag)
-        except Exception:
-            data = None
+            term_split = terms[0].split(' ', 1)
+            key = term_split[0]
 
-        try:
-            field = terms[1]
-        except IndexError:
-            field = None
+            # the environment variable takes precendence over the Ansible variable.
+            cafile = os.getenv('VAULT_CACERT') or (variables or inject).get('vault_cacert')
+            capath = os.getenv('VAULT_CAPATH') or (variables or inject).get('vault_capath')
+            cahostverify = (os.getenv('VAULT_CAHOSTVERIFY') or
+                            (variables or inject).get('vault_cahostverify') or 'yes') != DISABLE_VAULT_CAHOSTVERIFY
+            skipverify = ((os.getenv('VAULT_SKIP_VERIFY') in ['1', 'true', 'True', 't']) or
+                          (variables or inject).get('vault_skip_verify'))
+            self._verify_python_version(key, cafile, capath, cahostverify)
 
-        # the environment variable takes precendence over the Ansible variable.
-        url = os.getenv('VAULT_ADDR') or (variables or inject).get('vault_addr')
-        if not url:
-            raise AnsibleError('Vault address not set. Specify with'
-                               ' VAULT_ADDR environment variable or vault_addr Ansible variable')
-
-        # Support for Approle backend
-        approle_role_id = os.getenv('ANSIBLE_HASHICORP_VAULT_ROLE_ID')
-        approle_secret_id = os.getenv('ANSIBLE_HASHICORP_VAULT_SECRET_ID')
-        approle_role_path = os.getenv('ANSIBLE_HASHICORP_VAULT_ROLE_PATH', 'v1/auth/approle/login')
-
-        # first check if an approle token is already cached
-        vault_token = VAULT_CACHE.get('ANSIBLE_HASHICORP_VAULT_APPROLE_TOKEN', None)
-
-        # if approle role-id and secret-id are set, use approle to get a token
-        # and if caching is activated, the token will be stored in the cache
-        if not vault_token and approle_role_id and approle_secret_id:
-            vault_token = self._fetch_approle_token(
-                cafile, capath, approle_role_id, approle_secret_id, approle_role_path, url, cahostverify, skipverify)
-            if vault_token and USE_CACHE:
-                VAULT_CACHE['ANSIBLE_HASHICORP_VAULT_APPROLE_TOKEN'] = vault_token
-
-        # the environment variable takes precedence over the file-based token.
-        # intentionally do *not* support setting this via an Ansible variable,
-        # so as not to encourage bad security practices.
-        github_token = os.getenv('VAULT_GITHUB_API_TOKEN')
-        if not vault_token:
-            vault_token = os.getenv('VAULT_TOKEN')
-        if not vault_token and not github_token:
-            token_path = os.path.join(os.getenv('HOME'), '.vault-token')
             try:
-                with open(token_path) as token_file:
-                    vault_token = token_file.read().strip()
-            except IOError as err:
-                if err.errno != errno.ENOENT:
-                    raise AnsibleError('Error occurred when opening ' + token_path + ': ' + err.strerror)
-        if not github_token and not vault_token:
-            raise AnsibleError('Vault or GitHub authentication token missing. Specify with'
-                               ' VAULT_TOKEN/VAULT_GITHUB_API_TOKEN environment variable or in $HOME/.vault-token '
-                               '(Current $HOME value is ' + os.getenv('HOME') + ')')
+                parameters = term_split[1]
+                parameters = shlex.split(parameters)
 
-        if USE_CACHE and key in VAULT_CACHE:
-            result = VAULT_CACHE[key]
-        else:
+                parameter_bag = {}
+                for parameter in parameters:
+                    parameter_split = parameter.split('=', 1)
+
+                    parameter_key = parameter_split[0]
+                    parameter_value = parameter_split[1]
+                    parameter_bag[parameter_key] = parameter_value
+
+                data = json.dumps(parameter_bag)
+            except Exception:
+                data = None
+
+            try:
+                field = terms[1]
+            except IndexError:
+                field = None
+
+            # the environment variable takes precendence over the Ansible variable.
+            url = os.getenv('VAULT_ADDR') or (variables or inject).get('vault_addr')
+            if not url:
+                raise AnsibleError('Vault address not set. Specify with'
+                                   ' VAULT_ADDR environment variable or vault_addr Ansible variable')
+
+            # Support for Approle backend
+            approle_role_id = os.getenv('ANSIBLE_HASHICORP_VAULT_ROLE_ID')
+            approle_secret_id = os.getenv('ANSIBLE_HASHICORP_VAULT_SECRET_ID')
+            approle_role_path = os.getenv('ANSIBLE_HASHICORP_VAULT_ROLE_PATH', 'v1/auth/approle/login')
+
+            # first check if an approle token is already cached
+            vault_token = VAULT_CACHE.get('ANSIBLE_HASHICORP_VAULT_APPROLE_TOKEN', None)
+
+            # if approle role-id and secret-id are set, use approle to get a token
+            # and if caching is activated, the token will be stored in the cache
+            if not vault_token and approle_role_id and approle_secret_id:
+                vault_token = self._fetch_approle_token(
+                    cafile, capath, approle_role_id, approle_secret_id, approle_role_path, url, cahostverify, skipverify)
+                if vault_token and USE_CACHE:
+                    VAULT_CACHE['ANSIBLE_HASHICORP_VAULT_APPROLE_TOKEN'] = vault_token
+
+            # the environment variable takes precedence over the file-based token.
+            # intentionally do *not* support setting this via an Ansible variable,
+            # so as not to encourage bad security practices.
+            github_token = os.getenv('VAULT_GITHUB_API_TOKEN')
             if not vault_token:
-                token_result = self._fetch_github_token(cafile, capath, github_token, url, cahostverify, skipverify)
-                vault_token = token_result['auth']['client_token']
-            result = self._fetch_secret(cafile, capath, data, key, vault_token, url, cahostverify, skipverify)
-            if USE_CACHE:
-                VAULT_CACHE[key] = result
+                vault_token = os.getenv('VAULT_TOKEN')
+            if not vault_token and not github_token:
+                token_path = os.path.join(os.getenv('HOME'), '.vault-token')
+                try:
+                    with open(token_path) as token_file:
+                        vault_token = token_file.read().strip()
+                except IOError as err:
+                    if err.errno != errno.ENOENT:
+                        raise AnsibleError('Error occurred when opening ' + token_path + ': ' + err.strerror)
+            if not github_token and not vault_token:
+                raise AnsibleError('Vault or GitHub authentication token missing. Specify with'
+                                   ' VAULT_TOKEN/VAULT_GITHUB_API_TOKEN environment variable or in $HOME/.vault-token '
+                                   '(Current $HOME value is ' + os.getenv('HOME') + ')')
 
-        if type(result) is dict:
-            if field is not None:
-                return [result['data'][field]]
-            elif 'data' in result:
-                return [result['data']]
-        return [result]
+            if USE_CACHE and key in VAULT_CACHE:
+                result = VAULT_CACHE[key]
+            else:
+                if not vault_token:
+                    token_result = self._fetch_github_token(cafile, capath, github_token, url, cahostverify, skipverify)
+                    vault_token = token_result['auth']['client_token']
+                result = self._fetch_secret(cafile, capath, data, key, vault_token, url, cahostverify, skipverify)
+                if USE_CACHE:
+                    VAULT_CACHE[key] = result
+
+            if type(result) is dict:
+                if field is not None:
+                    return [result['data'][field]]
+                elif 'data' in result:
+                    return [result['data']]
+            return [result]
+        except AnsibleError:
+            raise
+        except Exception as e:
+            raise AnsibleError("vault lookup plugin failed: %s\n%s" %
+                               (to_native(e), traceback.format_exc()))
 
     def _fetch_approle_token(self, cafile, capath, role_id, secret_id,
                              approle_role_path, url, cahostverify, skipverify):
@@ -158,7 +169,7 @@ class LookupModule(LookupBase):
         try:
             return self._fetch_retry(cafile, capath, data, key, vault_token, urljoin(url, "v1/%s" % (key)), cahostverify, skipverify)
         except Exception as ex:
-            raise AnsibleError('Unable to read %s from vault: %s\n%s' % (key, ex, traceback.format_exc()))
+            raise AnsibleError('Unable to read %s from vault: %s\n%s' % (key, to_native(ex), traceback.format_exc()))
 
     def _fetch_retry(self, cafile, capath, data, key, vault_token, url, cahostverify, skipverify, tries=4, delay=0.5, backoff=2):
         result = None
@@ -174,6 +185,8 @@ class LookupModule(LookupBase):
                     raise
 
     def _fetch(self, cafile, capath, data, key, vault_token, url, cahostverify, skipverify):
+        display.vv("looking up vault entry: %s" % (key,))
+
         try:
             context = None
             if cafile or capath:
