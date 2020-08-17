@@ -185,7 +185,7 @@ class LookupModule(LookupBase):
                     raise
 
     def _fetch(self, cafile, capath, data, key, vault_token, url, cahostverify, skipverify):
-        display.display("looking up vault entry: %s" % (key,))
+        display.vv("looking up vault entry: %s" % (key,))
 
         try:
             context = None
