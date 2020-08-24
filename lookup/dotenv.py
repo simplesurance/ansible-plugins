@@ -45,6 +45,9 @@ class LookupModule(LookupBase):
             if params['key'] is None:
                 ret.append(data)
             else:
-                ret.append(data[params['key']])
+                try:
+                    ret.append(data[params['key']])
+                except (KeyError) as e:
+                    raise AnsibleError(e)
 
         return ret
