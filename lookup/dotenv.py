@@ -3,6 +3,7 @@ import os.path
 from dotenv import dotenv_values
 
 from ansible.errors import AnsibleError, AnsibleAssertionError
+from ansible.module_utils._text import to_native
 from ansible.parsing.splitter import parse_kv
 from ansible.plugins.lookup import LookupBase
 
@@ -34,7 +35,7 @@ class LookupModule(LookupBase):
                 path = '{}/{}'.format(params['path'], params['file'])
 
             if not os.path.isfile(path):
-                raise FileNotFoundError
+                raise AnsibleError("The specified filename was not found: {}".format(path))
 
             dotenv = dotenv_values(dotenv_path=path)
             data = json.loads(json.dumps(dotenv))
@@ -45,6 +46,7 @@ class LookupModule(LookupBase):
                 try:
                     ret.append(data[params['key']])
                 except (KeyError) as e:
-                    raise AnsibleError(e)
+                    raise AnsibleError('Something went wrong, the original exception was: {}'
+                                       .format(to_native(e)))
 
         return ret
