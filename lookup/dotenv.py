@@ -1,6 +1,5 @@
 import json
 import os.path
-from pathlib import Path
 from dotenv import dotenv_values
 
 from ansible.errors import AnsibleError, AnsibleAssertionError
@@ -11,13 +10,11 @@ from ansible.plugins.lookup import LookupBase
 class LookupModule(LookupBase):
 
     def run(self, terms, variables=None, **kwargs):
-        basedir = self.get_basedir(variables)
-
         ret = []
 
         params = {
             'file': '.env',
-            'path': basedir,
+            'path': self.get_basedir(variables),
             'key': None,
         }
 
@@ -29,8 +26,8 @@ class LookupModule(LookupBase):
                     if name not in params:
                         raise AnsibleAssertionError('{} not in params'.format(name))
                     params[name] = value
-            except (ValueError, AssertionError) as e:
-                raise AnsibleError(e)
+            except (ValueError, AssertionError) as exc:
+                raise AnsibleError(exc)
 
             path = params['file']
             if params['path']:
