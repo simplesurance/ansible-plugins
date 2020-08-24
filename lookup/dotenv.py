@@ -37,16 +37,16 @@ class LookupModule(LookupBase):
             if not os.path.isfile(path):
                 raise AnsibleError("The specified filename was not found: {}".format(path))
 
-            dotenv = dotenv_values(dotenv_path=path)
-            data = json.loads(json.dumps(dotenv))
+            try:
+                dotenv = dotenv_values(dotenv_path=path)
+                data = json.loads(json.dumps(dotenv))
 
-            if params['key'] is None:
-                ret.append(data)
-            else:
-                try:
+                if params['key'] is None:
+                    ret.append(data)
+                else:
                     ret.append(data[params['key']])
-                except (KeyError) as e:
-                    raise AnsibleError('Something went wrong, the original exception was: {}'
-                                       .format(to_native(e)))
+            except Exception as e:
+                raise AnsibleError('Something went wrong, the original exception was: {}'
+                                   .format(to_native(e)))
 
         return ret
