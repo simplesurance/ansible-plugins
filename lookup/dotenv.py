@@ -26,8 +26,8 @@ class LookupModule(LookupBase):
                     if name not in params:
                         raise AnsibleAssertionError('{} not in params'.format(name))
                     params[name] = value
-            except (ValueError, AssertionError) as exc:
-                raise AnsibleError(exc)
+            except (ValueError, AssertionError) as e:
+                raise AnsibleError(e)
 
             path = params['file']
             if params['path']:
