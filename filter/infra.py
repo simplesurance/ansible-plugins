@@ -11,7 +11,7 @@ def target2region(value):
     if re.search("^sb-.*", value):
         return "eu"
 
-    search = re.search("^.+-(stg|prd)-(.+)$", value)
+    search = re.search("^.+-(test|stg|prd)-(.+)$", value)
     if search:
         return search.group(2)
 
@@ -26,7 +26,7 @@ def target2project_id(value):
     if re.search("^sb-.*", value):
         return "sisu"
 
-    search = re.search("^(.+)-(stg|prd)-(.+)$", value)
+    search = re.search("^(.+)-(test|stg|prd)-(.+)$", value)
     if search:
         return search.group(1)
 
